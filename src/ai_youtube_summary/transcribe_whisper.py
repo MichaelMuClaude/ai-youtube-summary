@@ -2,6 +2,14 @@
 
 usage: python transcribe_whisper.py <audio path> <out json path> [model size]
 Writes {"language": "en", "cues": [[start_seconds, text], ...]} to out json path.
+
+CPU only for now. A GPU path was tried (ctranslate2 sees this machine's CUDA device fine) but
+faster-whisper's actual transcribe call needs libcublas.so.12 at runtime, which this venv doesn't
+have — the failure only surfaces mid-transcription, not at model load, so a naive try/except around
+model construction doesn't catch it. Fixing that means installing nvidia-cublas-cu12 /
+nvidia-cudnn-cu12 into this venv (or pointing LD_LIBRARY_PATH at another venv's copy, e.g.
+~/.venvs/kokoro already has them) and wrapping the transcribe() call itself, not just the
+constructor, in the fallback. Deferred; see LESSONS or project memory for this exact note.
 """
 
 import json
