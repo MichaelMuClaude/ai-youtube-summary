@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Video Summary",
+  "version": "0.1.0",
+  "description": "Fetch YouTube video transcripts and summaries via ai-youtube-summary.",
+  "permissions": [],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {"16": "icon.svg", "48": "icon.svg", "128": "icon.svg"}
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "icons": {"16": "icon.svg", "48": "icon.svg", "128": "icon.svg"}
+}

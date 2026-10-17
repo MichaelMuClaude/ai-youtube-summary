@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Summary</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <div class="wrapper">
+    <!-- Header -->
+    <header class="header">
+      <svg class="logo" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path d="M19.5 7.5a3 3 0 0 1 3 3v3a3 3 0 0 1-3 3h-3"/>
+        <path d="M4.5 16.5a3 3 0 0 1-3-3v-3a3 3 0 0 1 3-3h3"/>
+        <rect x="8" y="8" width="8" height="8" rx="1"/>
+      </svg>
+      <span class="title">Summary</span>
+    </header>
+
+    <!-- Video info area (shown after clicking) -->
+    <div id="video-info" class="card hidden">
+      <h2 id="video-title"></h2>
+      <p id="video-meta" class="meta"></p>
+    </div>
+
+    <!-- Action button -->
+    <button id="btn-fetch" class="btn btn-primary">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <span id="btn-text">Get Summary</span>
+    </button>
+
+    <!-- Status / loader -->
+    <div id="status" class="status hidden"></div>
+
+    <!-- Toggle tabs -->
+    <div id="tabs" class="tabs hidden">
+      <button class="tab active" data-target="summary">Summary</button>
+      <button class="tab" data-target="transcript">Transcript</button>
+      <button class="tab" data-target="raw">Raw JSON</button>
+    </div>
+
+    <!-- Content areas -->
+    <div id="content-area" class="hidden">
+      <div id="panel-summary" class="panel active"></div>
+      <div id="panel-transcript" class="panel hidden"><pre class="raw"></pre></div>
+      <div id="panel-raw" class="panel hidden"><pre class="raw"></pre></div>
+    </div>
+
+    <!-- Fallback: manual URL input -->
+    <div class="manual">
+      <input id="url-input" type="url" placeholder="Or paste a YouTube URL below..." class="url-input"/>
+      <button id="btn-manual" class="btn btn-secondary">Go</button>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">Powered by ai-youtube-summary API on localhost:9877</footer>
+  </div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>
