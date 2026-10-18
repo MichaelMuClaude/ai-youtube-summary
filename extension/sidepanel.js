@@ -70,6 +70,13 @@ async function pollDownload(taskId, maxRetries) {
         setDownloadStatus(data.progress || "Download failed", "error");
         return null;
       }
+      // The server keeps tasks in memory only — a restart (e.g. while updating it)
+      // wipes them, so an old task_id it no longer recognizes isn't a transient
+      // blip worth retrying for 10 minutes straight.
+      if (data.status === "not found") {
+        setDownloadStatus("Lost connection to the server (it may have restarted) — please click Download again.", "error");
+        return null;
+      }
     } catch (err) {
       console.warn("Download poll error:", err.message);
     }
@@ -217,6 +224,15 @@ async function pollTask(taskId, maxRetries) {
       if (data.status === "done") return data;
       if (data.status === "failed") {
         setStatus(data.progress || "Fetch failed", "error");
+        isPolling   = false;
+        $("btn-fetch").disabled   = false;
+        $("btn-text").textContent  = "Retry";
+        return null;
+      }
+      // The server keeps tasks in memory only — a restart wipes them, so an old
+      // task_id it no longer recognizes isn't worth retrying for 10 minutes straight.
+      if (data.status === "not found") {
+        setStatus("Lost connection to the server (it may have restarted) — please click again.", "error");
         isPolling   = false;
         $("btn-fetch").disabled   = false;
         $("btn-text").textContent  = "Retry";
