@@ -24,6 +24,19 @@
       <p id="video-meta" class="meta"></p>
     </div>
 
+    <!-- Download the video itself (audio or video file, manual choice) -->
+    <div class="download-row">
+      <select id="download-kind">
+        <option value="song">Audio (mp3)</option>
+        <option value="video">Video (mp4)</option>
+      </select>
+      <button id="btn-download" class="btn btn-secondary">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span id="btn-download-text">Download</span>
+      </button>
+    </div>
+    <div id="download-status" class="status hidden"></div>
+
     <!-- Summary language -->
     <div class="lang-row">
       <label for="lang-select">Summary language</label>

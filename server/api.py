@@ -28,6 +28,14 @@ IP         = "127.0.0.1"
 PORT       = 9877
 LAUNCHER   = str(Path.home() / ".local/bin/ai-youtube-summary")
 
+# The download/search/check logic (merged in from the former ai-youtube project) is
+# imported directly rather than shelled out to, since it's now part of this same package.
+sys.path.insert(0, str(BASE_DIR / "src"))
+from ai_youtube_summary import download as download_mod  # noqa: E402
+from ai_youtube_summary.errors import SummaryError  # noqa: E402
+
+DOWNLOAD_KINDS = {"song", "video"}  # extension exposes audio (best mp3) and video (mp4)
+
 # Local-model summarization. Proxied through this server (instead of the
 # extension calling Ollama directly) because Ollama rejects requests whose
 # Origin header is chrome-extension://... with a 403 by default; a plain
@@ -137,6 +145,30 @@ def _fetch_task(task_id, url, langs):
             _tasks_[task_id]["timestamped"] = ts.read_text(encoding="utf-8")
 
 
+def _download_task(task_id, url, kind):
+    """Runs in a background thread. Downloads straight into the shared Media library."""
+    with _lock:
+        _tasks_[task_id] = {"status": "fetching", "progress": "Starting download..."}
+
+    try:
+        path = download_mod.download(kind, url)
+    except SummaryError as error:
+        with _lock:
+            _tasks_[task_id]["status"] = "failed"
+            _tasks_[task_id]["progress"] = str(error)
+        return
+    except Exception as error:
+        with _lock:
+            _tasks_[task_id]["status"] = "failed"
+            _tasks_[task_id]["progress"] = str(error)
+        return
+
+    with _lock:
+        _tasks_[task_id]["status"] = "done"
+        _tasks_[task_id]["progress"] = "Ready!"
+        _tasks_[task_id]["path"] = path
+
+
 # ---- HTTP Handler ----
 
 class H(BaseHTTPRequestHandler):
@@ -222,6 +254,30 @@ class H(BaseHTTPRequestHandler):
                 _tasks_[task_id] = {"status": "pending", "progress": "Queued..."}
 
             t = threading.Thread(target=_fetch_task, args=(task_id, url, lang))
+            t.daemon = True
+            t.start()
+
+            self._respond(202, {"id": task_id, "status": "queued"})
+            return
+
+        if path == "/download":
+            length = int(self.headers.get("Content-Length", 0))
+            body   = json.loads(self.rfile.read(length))
+            url    = body.get("url")
+            kind   = body.get("kind")
+
+            if not url:
+                self._respond(400, {"error": "Missing 'url'"})
+                return
+            if kind not in DOWNLOAD_KINDS:
+                self._respond(400, {"error": "'kind' must be one of: " + ", ".join(sorted(DOWNLOAD_KINDS))})
+                return
+
+            task_id = str(uuid.uuid4())[:8]
+            with _lock:
+                _tasks_[task_id] = {"status": "pending", "progress": "Queued..."}
+
+            t = threading.Thread(target=_download_task, args=(task_id, url, kind))
             t.daemon = True
             t.start()
 

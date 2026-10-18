@@ -1,22 +1,43 @@
 ---
 name: ai-youtube-summary
-description: Get a clean, de-duplicated transcript of a YouTube video — official captions when they exist (no download at all), local Whisper transcription (audio only, no video download) when they don't — then read it and write the summary yourself. Use this whenever someone wants a YouTube video summarised, its key points pulled out, or asks "what is this video about" with a YouTube link.
+description: One tool for YouTube — (1) get a clean, de-duplicated transcript (official captions when they exist, no download at all; local Whisper audio-only fallback when they don't) for you to read and summarise yourself, and (2) search/check/download songs, lofi, or videos to the local media library (absorbed the former ai-youtube project 2026-10-18, same song/lofi/video/search/check commands). Use for "summarise this video" / "what does this say" with a YouTube link, or "download this song/video" / "find a song" / "have I already got this".
 compatibility: Python 3.9+, yt-dlp on PATH, ffmpeg (for audio extraction). Whisper fallback needs its own venv with faster-whisper installed (see Install below); without it, videos with no captions in the requested language will fail with a clear error instead of being summarised.
 ---
 
-# ai-youtube-summary — a YouTube video's transcript, ready to summarise
+# ai-youtube-summary — a YouTube video's transcript, ready to summarise — and its downloader
 
 ## What this is and is not
 
-This tool's job stops at **getting you a clean transcript**. It does not call an LLM to write the
-summary itself, on purpose: once the transcript is in an agent's context, writing a good summary is
-ordinary conversation, and baking an API call into the tool would only add a cost and a dependency
-for something you can already do. **You (the agent) read the transcript and write the summary.**
+The **transcript** side stops at **getting you a clean transcript**. It does not call an LLM to
+write the summary itself, on purpose: once the transcript is in an agent's context, writing a good
+summary is ordinary conversation, and baking an API call into the tool would only add a cost and a
+dependency for something you can already do. **You (the agent) read the transcript and write the
+summary.** (The browser extension's `/summarize` endpoint is the one exception — a local Ollama
+model, used only by the extension's UI, not by this CLI.)
 
-## When to use it
+The **download** side (`search`/`check`/`song`/`lofi`/`video`) is a plain yt-dlp wrapper that writes
+real files into `~/Media/Master-Media-Collection/`.
+
+## When to use it — transcript/summary
 
 Michael gives you a YouTube link and asks for a summary, the key points, "what does this video say",
 or similar — **use this tool to get the transcript**, don't try to guess the content from the title.
+
+## When to use it — download
+
+- Michael says "下载一首歌"/"下视频" → **use `song`/`lofi`/`video`**. Don't manually go to a browser
+  or install your own copy of yt-dlp — it's already here.
+- Michael wants to "先搜搜看有什么"/试听 before deciding → **use `search`**.
+- **Before recommending a song**, `check` it first: [命中] means he already has it locally (don't
+  re-recommend it as new); [未命中] means it's safe to suggest. `check` takes a title/keywords, never
+  a URL — its fuzzy matching is the standard answer for "do I have this already", more reliable than
+  eyeballing filenames with `ls`/`find`.
+- Typical flow: `check` → (未命中) → recommend → `search` (he wants to preview) → he picks one →
+  `song`/`lofi`/`video` to actually save it.
+- `song`/`lofi`/`video` accept either a URL or search keywords (first hit is downloaded) — no quotes
+  needed for multi-word keywords.
+- Execution discipline: once Michael says to download/search something, actually call the command
+  immediately — don't just reply "好呀我这就去" and stop. Say you're starting, then start.
 
 ## Commands
 

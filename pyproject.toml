@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "ai-youtube-summary"
 version = "0.1.0"
-description = "Get a clean transcript of a YouTube video (captions first, local Whisper fallback) for an agent to summarise."
+description = "YouTube transcript (captions first, local Whisper fallback) for an agent to summarise, plus song/lofi/video downloads to a local media library."
 requires-python = ">=3.9"
 dependencies = []
 

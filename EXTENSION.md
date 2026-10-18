@@ -44,6 +44,10 @@ The server starts on `http://127.0.0.1:9877` with CORS enabled for any origin.
 - Click the side panel icon (puzzle piece → "YouTube Video Summary")
 - Or click the extension toolbar icon and open side panel
 - The transcript will be fetched automatically
+- To save the actual file instead (or as well), pick **Audio (mp3)** or **Video (mp4)** in the
+  Download row and click **Download** — it saves straight into your local Media library
+  (`~/Media/Master-Media-Collection/Songs` or `.../Videos`), the same place the `ai-youtube-summary
+  song`/`video` CLI commands write to
 
 ## API Endpoints
 
@@ -54,6 +58,7 @@ The server starts on `http://127.0.0.1:9877` with CORS enabled for any origin.
 | GET | /task/{id} | Poll for task progress (status: pending/fetching/done/failed) |
 | GET | /info | Quick video info without transcription |
 | POST | /summarize | Summarize via local Ollama. Body: `{title, transcript, lang}` (`lang`: `"zh"` default, `"en"`, or `"auto"` to match the transcript) |
+| POST | /download | Download the video itself. Body: `{url, kind}` (`kind`: `"song"` for best-quality mp3, or `"video"` for mp4+subs). Returns `{id, status}`, poll `/task/{id}` same as `/fetch`; on `"done"` the task has a `path` field with where it was saved |
 
 ## Extension Files
 

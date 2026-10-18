@@ -1,11 +1,18 @@
 # ai-youtube-summary
 
-Get a clean, de-duplicated transcript of a YouTube video — official captions when they exist (no
-download at all), local Whisper transcription (audio only, never the video) when they don't — so an
-agent can read it and write the summary.
+One YouTube tool: get a clean, de-duplicated transcript of a video — official captions when they
+exist (no download at all), local Whisper transcription (audio only, never the video) when they
+don't — so an agent can read it and write the summary; or download the actual audio/video file to
+your local media library. A browser extension (see [`EXTENSION.md`](EXTENSION.md)) wraps both in a
+side panel, with a local-model summarizer on top.
 
-Deliberately stops there: it does not call an LLM to summarise for you. Once the transcript is in an
-agent's context, writing the summary is ordinary conversation.
+Transcript fetching is deliberately dumb: it does not call an LLM to summarise for you. Once the
+transcript is in an agent's context, writing the summary is ordinary conversation (the extension's
+`/summarize` endpoint is the one place an LLM — a local Ollama model — is actually called, and that's
+opt-in, for the UI, not the CLI).
+
+(This project absorbed the former standalone `ai-youtube` downloader on 2026-10-18 — same `song` /
+`lofi` / `video` / `search` / `check` commands, now living here instead of their own repo.)
 
 ## Install
 
@@ -43,6 +50,22 @@ ai-youtube-summary fetch <url> --force-whisper     # skip captions, transcribe d
 ai-youtube-summary fetch <url> --whisper-model medium  # slower, more accurate fallback
 ```
 
+## Download instead of (or as well as) summarising
+
+```bash
+ai-youtube-summary search "<query>"     # top 5 YouTube results, no download
+ai-youtube-summary check  "<query>"     # is this already in the local media library?
+ai-youtube-summary song   <url-or-query>   # audio, best quality mp3 -> ~/Media/.../Songs
+ai-youtube-summary lofi   <url-or-query>   # audio, 192kbps mp3     -> ~/Media/.../Lofi
+ai-youtube-summary video  <url-or-query>   # video, mp4 + subs      -> ~/Media/.../Videos
+```
+
+`song`/`lofi`/`video` accept either a direct URL or search keywords (first hit is downloaded).
+Output goes to `~/Media/Master-Media-Collection/{Songs,Lofi,Videos}` by default (override with
+`AI_YOUTUBE_LIBRARY`). `check` does fuzzy title matching against what's already downloaded so you
+don't fetch the same song/video twice — see `src/ai_youtube_summary/download.py` for the matching
+rules.
+
 ## Why captions first
 
 Fetching an existing caption file takes a couple of seconds and downloads nothing but the text.
@@ -68,9 +91,11 @@ credits line. See `tests/test_vtt.py` for both real formats, captured from real 
 ## Layout
 
 - `src/ai_youtube_summary/vtt.py` — parses both caption styles into clean, de-duplicated cues
-- `src/ai_youtube_summary/core.py` — the pipeline: captions first, Whisper only if there are none
+- `src/ai_youtube_summary/core.py` — the transcript pipeline: captions first, Whisper only if there are none
 - `src/ai_youtube_summary/transcribe_whisper.py` — runs inside the Whisper venv
-- `src/ai_youtube_summary/cli.py` — the `ai-youtube-summary` commands
+- `src/ai_youtube_summary/download.py` — `song`/`lofi`/`video`/`search`/`check` (the former ai-youtube)
+- `src/ai_youtube_summary/cli.py` — the `ai-youtube-summary` command dispatcher
+- `extension/`, `server/` — the browser extension and its local HTTP bridge, see `EXTENSION.md`
 
 ## Licence
 

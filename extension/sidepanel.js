@@ -47,6 +47,58 @@ async function checkApiResponse(resp) {
   return json;
 }
 
+/* ---- Manual download (audio or video file, saved into the local Media library) ---- */
+var isDownloading = false;
+
+function setDownloadStatus(msg, cls) {
+  var el   = $("download-status");
+  if (!cls || cls === "") { el.className = "status hidden"; return; }
+  el.textContent   = msg || "";
+  el.className     = "status " + cls;
+}
+
+async function pollDownload(taskId, maxRetries) {
+  maxRetries = maxRetries || 90;
+  for (var i = 0; i < maxRetries; i += 1) {
+    try {
+      var data   = await apiGet("/task/" + taskId);
+      if (data.status === "done") return data;
+      if (data.status === "failed") {
+        setDownloadStatus(data.progress || "Download failed", "error");
+        return null;
+      }
+    } catch (err) {
+      console.warn("Download poll error:", err.message);
+    }
+    await new Promise(function(r) { setTimeout(r, 5000); });
+  }
+  setDownloadStatus("Timed out", "error");
+  return null;
+}
+
+async function doDownload(url, kind) {
+  if (isDownloading || !url) return;
+  isDownloading   = true;
+
+  $("btn-download").disabled        = true;
+  $("btn-download-text").textContent = "Downloading...";
+  setDownloadStatus("Starting download...", "loading");
+
+  try {
+    var resp   = await apiPost("/download", { url: url, kind: kind });
+    var data   = await pollDownload(resp.id);
+    if (data) {
+      setDownloadStatus("Saved to: " + data.path, "ok");
+    }
+  } catch (err) {
+    setDownloadStatus(err.message || "Download failed", "error");
+  }
+
+  isDownloading                      = false;
+  $("btn-download").disabled         = false;
+  $("btn-download-text").textContent = "Download";
+}
+
 /* ---- Local-model summarization ---- */
 async function summarizeWithOllama(title, transcript, lang) {
   var data   = await apiPost("/summarize", { title: title, transcript: transcript, lang: lang });
@@ -221,6 +273,12 @@ document.querySelectorAll(".tab[data-target]").forEach(function(tab) {
 
 $("btn-fetch").addEventListener("click", function() {
   if (currentUrl) doFetch(currentUrl, "en");
+});
+
+$("btn-download").addEventListener("click", function() {
+  var url   = currentUrl || $("url-input").value.trim();
+  if (!url) { setDownloadStatus("No video URL yet — open a YouTube tab or paste a URL below.", "error"); return; }
+  doDownload(url, $("download-kind").value);
 });
 
 $("btn-manual").addEventListener("click", function() {
