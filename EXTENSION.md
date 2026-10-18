@@ -47,7 +47,9 @@ The server starts on `http://127.0.0.1:9877` with CORS enabled for any origin.
 - To save the actual file instead (or as well), pick **Audio (mp3)** or **Video (mp4)** in the
   Download row and click **Download** — it saves straight into your local Media library
   (`~/Media/Master-Media-Collection/Songs` or `.../Videos`), the same place the `ai-youtube-summary
-  song`/`video` CLI commands write to
+  song`/`video` CLI commands write to. Right after that, your browser's own **Save As** dialog pops
+  up so you can also pick any folder to keep a second copy in — cancel it if you only wanted the
+  library copy, nothing is lost either way
 
 ## API Endpoints
 
@@ -59,6 +61,7 @@ The server starts on `http://127.0.0.1:9877` with CORS enabled for any origin.
 | GET | /info | Quick video info without transcription |
 | POST | /summarize | Summarize via local Ollama. Body: `{title, transcript, lang}` (`lang`: `"zh"` default, `"en"`, or `"auto"` to match the transcript) |
 | POST | /download | Download the video itself. Body: `{url, kind}` (`kind`: `"song"` for best-quality mp3, or `"video"` for mp4+subs). Returns `{id, status}`, poll `/task/{id}` same as `/fetch`; on `"done"` the task has a `path` field with where it was saved |
+| GET | /download/file/{id} | Streams the file a completed `/download` task saved, with a real filename — used to feed the browser's own Save As dialog via `chrome.downloads` |
 
 ## Extension Files
 
