@@ -40,8 +40,13 @@ DOWNLOAD_KINDS = {"song", "video"}  # extension exposes audio (best mp3) and vid
 # extension calling Ollama directly) because Ollama rejects requests whose
 # Origin header is chrome-extension://... with a 403 by default; a plain
 # Python request has no such header and goes straight through.
-OLLAMA_URL         = "http://127.0.0.1:11434/api/chat"
-OLLAMA_MODEL       = "qwen3.6:35b-a3b"
+#
+# OLLAMA_MODEL defaults to a model that happens to be pulled on the machine
+# this was built on — it's very unlikely to exist on a fresh clone. Override
+# it with the OLLAMA_MODEL env var to whatever `ollama list` shows you have
+# (see README.md's Quick start for picking one that fits your GPU).
+OLLAMA_URL         = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434/api/chat")
+OLLAMA_MODEL       = os.environ.get("OLLAMA_MODEL", "qwen3.6:35b-a3b")
 SUMMARY_MAX_CHARS  = 20000
 SUMMARY_SYSTEM_PROMPT_BASE = (
     "You are a careful video summarizer. Read the YouTube transcript the user gives you. "
@@ -191,6 +196,10 @@ class H(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path   = parsed.path
         params = parse_qs(parsed.query)
+
+        if path == "/config":
+            self._respond(200, {"ollama_model": OLLAMA_MODEL})
+            return
 
         if path == "/status":
             with _lock:

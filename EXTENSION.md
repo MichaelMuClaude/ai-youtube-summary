@@ -82,8 +82,10 @@ extension/
 - ffmpeg on PATH
 - Python 3.9+ for the API server
 - Microsoft Edge (or Chrome with manifest v2 mode)
-- [Ollama](https://ollama.com) running locally on port 11434, with the model named in
-  `OLLAMA_MODEL` (`server/api.py`) pulled — default is `qwen3.6:35b-a3b`
+- [Ollama](https://ollama.com) running locally on port 11434, with the model named by the
+  `OLLAMA_MODEL` env var pulled (defaults to `qwen3.6:35b-a3b` if unset — that's very unlikely to be
+  what you have, so set it: `export OLLAMA_MODEL=qwen2.5:7b` or similar, before starting the server;
+  see the main [README](README.md#quick-start) for picking a size that fits your GPU)
 
 ### A local GPU is effectively required for the summary step
 

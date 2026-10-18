@@ -14,7 +14,32 @@ opt-in, for the UI, not the CLI).
 (This project absorbed the former standalone `ai-youtube` downloader on 2026-10-18 — same `song` /
 `lofi` / `video` / `search` / `check` commands, now living here instead of their own repo.)
 
-## Install
+## Quick start
+
+```bash
+git clone https://github.com/MichaelMuClaude/ai-youtube-summary.git
+cd ai-youtube-summary
+./setup.sh
+```
+
+`setup.sh` checks for `yt-dlp`/`ffmpeg`, puts the `ai-youtube-summary` command on your PATH, sets up
+the separate venv the local Whisper fallback needs, and — if it finds an NVIDIA GPU and Ollama — tells
+you whether the summarization model is already pulled. It's safe to re-run any time.
+
+**The local-model summary tab in the browser extension needs a GPU.** Everything else (`fetch`,
+`info`, `search`, `check`, `song`/`lofi`/`video` downloads, and reading a transcript yourself) runs
+fine CPU-only — see [EXTENSION.md](EXTENSION.md#a-local-gpu-is-effectively-required-for-the-summary-step)
+for why, and what to do if you don't have one. If you do:
+
+```bash
+# install Ollama from https://ollama.com, then pull a model that fits your VRAM — e.g.:
+ollama pull qwen2.5:7b          # ~5GB VRAM, broadly available, a reasonable default to try first
+# this repo's own default (OLLAMA_MODEL in server/api.py) assumes a much bigger model that is
+# very unlikely to be what you have pulled — override it:
+export OLLAMA_MODEL=qwen2.5:7b  # before `python3 -m server.api`, or put it in your shell profile
+```
+
+### Manual install (what `setup.sh` does, if you'd rather do it by hand)
 
 ```bash
 # needs yt-dlp and ffmpeg on PATH already
@@ -23,8 +48,10 @@ python3 -m venv ~/.venvs/ai-youtube-summary
 # av 19+ breaks faster-whisper 1.2.1 (TypeError: metadata_errors); pin 18.0.0.
 ```
 
-The CLI itself needs nothing but the standard library — only the Whisper fallback runs in its own
-venv (the same split `ai-book2video` uses for its TTS voice).
+The CLI itself needs nothing but the standard library (no pip install, no PEP 668 fuss) — only the
+Whisper fallback runs in its own venv (the same split `ai-book2video` uses for its TTS voice). Put a
+launcher on your PATH that sets `PYTHONPATH` to `<repo>/src` and runs `python3 -m ai_youtube_summary
+"$@"` (see `setup.sh` for the exact script it writes to `~/.local/bin/ai-youtube-summary`).
 
 ## Use
 
@@ -90,6 +117,7 @@ credits line. See `tests/test_vtt.py` for both real formats, captured from real 
 
 ## Layout
 
+- `setup.sh` — one-shot setup for a fresh clone (see Quick start above)
 - `src/ai_youtube_summary/vtt.py` — parses both caption styles into clean, de-duplicated cues
 - `src/ai_youtube_summary/core.py` — the transcript pipeline: captions first, Whisper only if there are none
 - `src/ai_youtube_summary/transcribe_whisper.py` — runs inside the Whisper venv

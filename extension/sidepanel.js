@@ -3,7 +3,10 @@ var API            = "http://127.0.0.1:9877";
 // The model name shown in status text; actual summarization runs server-side
 // (server/api.py), not in this page — Ollama returns 403 on requests whose
 // Origin is chrome-extension://..., so this proxies through our own server.
-var OLLAMA_MODEL    = "qwen3.6:35b-a3b";
+// Fetched from the server's /config on load (server/api.py's OLLAMA_MODEL,
+// itself overridable with the OLLAMA_MODEL env var) rather than hardcoded
+// here, since whoever runs this may have a different model pulled.
+var OLLAMA_MODEL    = "a local model";
 
 var currentUrl  = null;
 var isPolling   = false;
@@ -318,6 +321,13 @@ $("url-input").addEventListener("keydown", function(e) {
 
 /* ---- Detect YouTube on load ---- */
 window.addEventListener("DOMContentLoaded", async function() {
+  try {
+    var config   = await apiGet("/config");
+    if (config && config.ollama_model) OLLAMA_MODEL = config.ollama_model;
+  } catch (configErr) {
+    console.warn("Could not fetch /config:", configErr.message);
+  }
+
   try {
     var tabs      = await chrome.tabs.query({ active: true, currentWindow: true });
     var tab       = tabs && tabs[0];
