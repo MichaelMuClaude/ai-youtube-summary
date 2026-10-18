@@ -1,6 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-  <rect width="128" height="128" rx="24" fill="#6366f1"/>
-  <path d="M36 50 L70 50 L70 62 L54 62 L54 90 L70 90 L70 102 L36 102 Z" fill="#fff"/>
-  <path d="M78 50 L106 50 L106 62 L90 62 L90 74 L106 74 L106 86 L90 86 L90 90 L106 90" fill="#fff"/>
-  <rect x="42" y="56" width="6" height="6" rx="1" fill="#c7d2fe"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#4f46e5"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+
+  <!-- soft top-left sheen for a little depth -->
+  <ellipse cx="40" cy="34" rx="46" ry="30" fill="#ffffff" opacity="0.10"/>
+
+  <!-- play glyph: the video -->
+  <path d="M46 26 L46 60 L82 43 Z" fill="#ffffff"/>
+
+  <!-- fading text bars: the summary -->
+  <rect x="36" y="76" width="56" height="8" rx="4" fill="#ffffff" opacity="0.95"/>
+  <rect x="42" y="90" width="44" height="8" rx="4" fill="#ffffff" opacity="0.70"/>
+  <rect x="48" y="104" width="32" height="8" rx="4" fill="#ffffff" opacity="0.48"/>
 </svg>
