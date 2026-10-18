@@ -53,6 +53,7 @@ The server starts on `http://127.0.0.1:9877` with CORS enabled for any origin.
 | POST | /fetch | Start a fetch. Body: `{url: "...", lang: ["en"]}` |
 | GET | /task/{id} | Poll for task progress (status: pending/fetching/done/failed) |
 | GET | /info | Quick video info without transcription |
+| POST | /summarize | Summarize via local Ollama. Body: `{title, transcript, lang}` (`lang`: `"zh"` default, `"en"`, or `"auto"` to match the transcript) |
 
 ## Extension Files
 
@@ -73,3 +74,19 @@ extension/
 - ffmpeg on PATH
 - Python 3.9+ for the API server
 - Microsoft Edge (or Chrome with manifest v2 mode)
+- [Ollama](https://ollama.com) running locally on port 11434, with the model named in
+  `OLLAMA_MODEL` (`server/api.py`) pulled — default is `qwen3.6:35b-a3b`
+
+### A local GPU is effectively required for the summary step
+
+Caption fetching needs no GPU at all (no model runs), and the Whisper fallback (for videos
+with no captions) currently runs CPU-only on this project — see `transcribe_whisper.py` for
+why GPU support there is deferred.
+
+But the **summarization** step calls a real LLM through Ollama. Even a "small" local model in
+this class (a few billion active parameters, more if you pick a denser one than the MoE
+default) is impractical to run well on CPU alone — expect it to be extremely slow, or to
+time out the 180s limit in `server/api.py`, on a CPU-only machine. If Ollama has no usable
+GPU, either point `OLLAMA_MODEL` at a much smaller model (e.g. `openbmb/minicpm5:latest`,
+~1B params, still CPU-runnable but noticeably lower summary quality) or skip the `/summarize`
+call entirely and just read the Transcript/Raw JSON tabs.
