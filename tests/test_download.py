@@ -88,6 +88,8 @@ class TestYtDlpArgs:
         assert "--embed-thumbnail" in args
         assert "--embed-metadata" in args
         assert "--add-metadata" in args
+        p_idx = args.index("--print")
+        assert args[p_idx + 1] == "after_move:filepath"
 
     def test_video_flags(self):
         args = yt_dlp_args("video", "https://youtu.be/xxx")
@@ -215,6 +217,19 @@ class TestDownloadFailure:
             path = download("song", "test query")
             assert mock_run.called
             assert path == _DIRS["song"]
+
+    def test_download_song_resolves_exact_path_from_ytdlp_output(self, tmp_path, monkeypatch):
+        songs_dir = tmp_path / "Songs"
+        songs_dir.mkdir(parents=True, exist_ok=True)
+        monkeypatch.setitem(_DIRS, "song", str(songs_dir))
+        exact_path = songs_dir / "Some Song.mp3"
+
+        def fake_run(args, **kwargs):
+            return subprocess.CompletedProcess(args=args, returncode=0, stdout=f"{exact_path}\n")
+
+        monkeypatch.setattr("ai_youtube_summary.download.subprocess.run", fake_run)
+        path = download("song", "test query")
+        assert path == str(exact_path)
 
 
 # ── VALID_KINDS ──────────────────────────────────

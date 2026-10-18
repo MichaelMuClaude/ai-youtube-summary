@@ -244,6 +244,7 @@ def yt_dlp_args(kind: str, target: str) -> list[str]:
             "--embed-thumbnail",
             "--embed-metadata",
             "--add-metadata",
+            "--print", "after_move:filepath",
             target,
         ]
 

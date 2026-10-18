@@ -5,7 +5,8 @@
   "description": "Fetch YouTube video transcripts and summaries via ai-youtube-summary.",
   "permissions": [
     "tabs",
-    "sidePanel"
+    "sidePanel",
+    "downloads"
   ],
   "host_permissions": [
     "http://127.0.0.1:9877/*"

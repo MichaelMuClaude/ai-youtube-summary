@@ -19,7 +19,7 @@ import uuid
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from socketserver import ThreadingMixIn
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 
 # Config
 BASE_DIR   = Path(__file__).resolve().parent.parent
@@ -231,6 +231,34 @@ class H(BaseHTTPRequestHandler):
             with _lock:
                 task = dict(_tasks_.get(task_id, {"status": "not found"}))
             self._respond(200, task)
+            return
+
+        if path.startswith("/download/file/"):
+            task_id = path[len("/download/file/"):]
+            with _lock:
+                task = dict(_tasks_.get(task_id, {}))
+            file_path = task.get("path")
+            if task.get("status") != "done" or not file_path:
+                self._respond(404, {"error": "Not found"})
+                return
+            file_path = Path(file_path)
+            if not file_path.is_file():
+                self._respond(404, {"error": "File no longer exists on disk"})
+                return
+
+            ascii_name = file_path.name.encode("ascii", "ignore").decode("ascii") or "download"
+            quoted_name = quote(file_path.name)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Length", str(file_path.stat().st_size))
+            self.send_header(
+                "Content-Disposition",
+                "attachment; filename=\"%s\"; filename*=UTF-8''%s" % (ascii_name, quoted_name),
+            )
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            with open(file_path, "rb") as f:
+                shutil.copyfileobj(f, self.wfile)
             return
 
         self._respond(404, {"error": "Not found"})

@@ -76,6 +76,27 @@ async function pollDownload(taskId, maxRetries) {
   return null;
 }
 
+// Opens the browser's native Save As dialog over the file the server just saved into
+// the Media library, so the user can additionally keep a copy wherever they pick. The
+// library copy is unaffected either way (and is what `check`/dedup looks at).
+function promptSaveAs(taskId, savedPath) {
+  if (!chrome.downloads || !chrome.downloads.download) return;
+  var suggestedName   = savedPath.split("/").pop();
+  try {
+    chrome.downloads.download({
+      url: API + "/download/file/" + taskId,
+      filename: suggestedName,
+      saveAs: true,
+    }, function() {
+      if (chrome.runtime.lastError) {
+        console.warn("Save As dialog failed:", chrome.runtime.lastError.message);
+      }
+    });
+  } catch (err) {
+    console.warn("Save As dialog failed:", err.message);
+  }
+}
+
 async function doDownload(url, kind) {
   if (isDownloading || !url) return;
   isDownloading   = true;
@@ -88,6 +109,8 @@ async function doDownload(url, kind) {
     var resp   = await apiPost("/download", { url: url, kind: kind });
     var data   = await pollDownload(resp.id);
     if (data) {
+      setDownloadStatus("Saved to: " + data.path + " — pick a location in the dialog to also keep a copy there...", "loading");
+      promptSaveAs(resp.id, data.path);
       setDownloadStatus("Saved to: " + data.path, "ok");
     }
   } catch (err) {
