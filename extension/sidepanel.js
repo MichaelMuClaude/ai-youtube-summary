@@ -1,5 +1,10 @@
 /** YouTube Video Summary - Side Panel */
-var API     = "http://127.0.0.1:9877";
+var API            = "http://127.0.0.1:9877";
+// The model name shown in status text; actual summarization runs server-side
+// (server/api.py), not in this page — Ollama returns 403 on requests whose
+// Origin is chrome-extension://..., so this proxies through our own server.
+var OLLAMA_MODEL    = "qwen3.6:35b-a3b";
+
 var currentUrl  = null;
 var isPolling   = false;
 
@@ -22,8 +27,7 @@ function showVideoInfo(info) {
 /* ---- API calls ---- */
 async function apiGet(path) {
   var resp  = await fetch(API + path);
-  if (!resp.ok) throw new Error("API " + resp.status);
-  return resp.json();
+  return checkApiResponse(resp);
 }
 
 async function apiPost(path, body) {
@@ -32,8 +36,22 @@ async function apiPost(path, body) {
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify(body),
   });
-  if (!resp.ok) throw new Error("API " + resp.status);
-  return resp.json();
+  return checkApiResponse(resp);
+}
+
+async function checkApiResponse(resp) {
+  var json   = await resp.json().catch(function() { return null; });
+  if (!resp.ok) {
+    throw new Error((json && json.error) ? json.error : ("API " + resp.status));
+  }
+  return json;
+}
+
+/* ---- Local-model summarization ---- */
+async function summarizeWithOllama(title, transcript, lang) {
+  var data   = await apiPost("/summarize", { title: title, transcript: transcript, lang: lang });
+  if (!data.content) throw new Error(data.error || "Summarization returned no content");
+  return data.content;
 }
 
 /* ---- UI helpers ---- */
@@ -53,15 +71,43 @@ function setStatus(msg, cls) {
 }
 
 /* ---- Rendering ---- */
+// Small, dependency-free markdown renderer: headings, bullet lists, **bold**,
+// falls back to plain paragraphs for everything else.
 function renderMd(text) {
   if (!text) return "<p>Nothing to show.</p>";
-  var html    = "<div>";
-  var lines   = text.split("\n").filter(function(l) { return l.trim().length > 0; });
-  for (var i = 0; i < lines.length; i += 1) {
-    var content   = lines[i].trim();
-    html += "<p>" + esc(content) + "</p>";
+  var lines   = text.split("\n");
+  var html    = "";
+  var inList  = false;
+
+  function closeList() { if (inList) { html += "</ul>"; inList = false; } }
+  function inline(s) {
+    return esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
   }
-  return html + "</div>";
+
+  for (var i = 0; i < lines.length; i += 1) {
+    var line   = lines[i].trim();
+    if (line.length === 0) { closeList(); continue; }
+
+    var heading   = /^(#{1,6})\s+(.*)$/.exec(line);
+    if (heading) {
+      closeList();
+      var level   = Math.min(heading[1].length + 2, 6); // keep headings small in a side panel
+      html += "<h" + level + ">" + inline(heading[2]) + "</h" + level + ">";
+      continue;
+    }
+
+    var bullet   = /^[-*]\s+(.*)$/.exec(line);
+    if (bullet) {
+      if (!inList) { html += "<ul>"; inList = true; }
+      html += "<li>" + inline(bullet[1]) + "</li>";
+      continue;
+    }
+
+    closeList();
+    html += "<p>" + inline(line) + "</p>";
+  }
+  closeList();
+  return html;
 }
 
 function esc(s) {
@@ -76,7 +122,7 @@ function switchTab(name) {
   clearTabs();
   var tab   = document.querySelector('[data-target="' + name + '"]');
   if (tab) tab.classList.add("active");
-  
+
   ["summary", "transcript", "raw"].forEach(function(pane) {
     var el   = $("panel-" + pane);
     if (!el) return;
@@ -115,38 +161,57 @@ async function doFetch(url, lang) {
   if (isPolling) return;
   isPolling   = true;
   currentUrl  = url;
-  
-  $("btn-fetch").disabled     = false;
+
+  $("btn-fetch").disabled     = true;
   $("btn-text").textContent  = "Starting...";
   doHide(["video-info", "tabs", "content-area"]);
   clearTabs();
   $("panel-summary").innerHTML   = "";
-  
+  setStatus("Fetching transcript...", "loading");
+
   try {
     var resp       = await apiPost("/fetch", { url: url, lang: [lang || "en"] });
     var data     = await pollTask(resp.id);
     if (!data) return;
-    
-    showVideoInfo(data.data.manifest);
+
+    showVideoInfo(data.manifest);
     doShow(true, ["video-info", "tabs", "content-area"]);
     switchTab("summary");
-    
-    $("panel-summary").innerHTML      = renderMd(data.data.transcript);
-    if (data.data.timestamped) {
-      $("panel-transcript").textContent  = data.data.timestamped;
+
+    if (data.timestamped) {
+      $("panel-transcript").querySelector("pre").textContent  = data.timestamped;
     }
-    var rawJson   = JSON.stringify(data.data.manifest, null, 2);
-    $("panel-raw").innerHTML       = "<pre class=\"raw\">" + esc(rawJson) + "</pre>";
-    
+    var rawJson   = JSON.stringify(data.manifest, null, 2);
+    $("panel-raw").querySelector("pre").textContent   = rawJson;
+
+    // Summarize with the local model. If it's unreachable or fails, fall
+    // back to showing the raw transcript instead of leaving the tab blank.
+    setStatus("Summarizing with local model (" + OLLAMA_MODEL + ")...", "loading");
+    try {
+      var lang       = $("lang-select").value;
+      var summary   = await summarizeWithOllama(data.manifest.title, data.transcript, lang);
+      $("panel-summary").innerHTML   = renderMd(summary);
+      setStatus("", "");
+    } catch (sumErr) {
+      console.warn("Summarization failed:", sumErr.message);
+      $("panel-summary").innerHTML   =
+        "<p class=\"warn\">Local model summarization failed (" + esc(sumErr.message) +
+        "). Showing the raw transcript instead — check that Ollama is running on localhost:11434.</p>" +
+        renderMd(data.transcript);
+      setStatus("", "");
+    }
+
     $("btn-fetch").disabled     = false;
     $("btn-text").textContent  = "Refresh";
-    
+
   } catch (err) {
     setStatus(err.message || "Fetch failed", "error");
     isPolling   = false;
     $("btn-fetch").disabled   = false;
     $("btn-text").textContent  = "Retry";
+    return;
   }
+  isPolling   = false;
 }
 
 /* ---- Event Handlers ---- */
@@ -175,13 +240,13 @@ window.addEventListener("DOMContentLoaded", async function() {
   try {
     var tabs      = await chrome.tabs.query({ active: true, currentWindow: true });
     var tab       = tabs && tabs[0];
-    
+
     if (tab && tab.url) {
       var isYt     = /^https?:\/\/www\.youtube\.com\/watch\?/.test(tab.url);
       if (isYt) {
         currentUrl   = tab.url;
         doShow(true, ["btn-fetch"]);
-        
+
         try {
           var info   = await apiGet("/info?url=" + encodeURIComponent(tab.url));
           showVideoInfo(info);

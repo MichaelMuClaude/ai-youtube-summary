@@ -2,13 +2,12 @@ document.getElementById("open-sidepanel").addEventListener("click", async functi
   // Get the active tab's URL
   var tabs = await chrome.tabs.query({ active: true, currentWindow: true });
   var tab  = tabs[0];
-  
+
   if (tab) {
-    // Send URL to side panel via a messaging channel
-    if (chrome.runtime && chrome.runtime.openSidePanel) {
-      chrome.runtime.openSidePanel();
+    if (chrome.sidePanel && chrome.sidePanel.open) {
+      chrome.sidePanel.open({ windowId: tab.windowId });
     } else {
-      console.warn("openSidePanel not available");
+      console.warn("chrome.sidePanel API not available in this browser");
     }
   }
 });

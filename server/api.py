@@ -13,6 +13,8 @@ import shutil
 import subprocess as sp
 import sys
 import threading
+import urllib.error
+import urllib.request
 import uuid
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
@@ -25,6 +27,57 @@ TMP_DIR    = BASE_DIR / "tmp" / "browser"
 IP         = "127.0.0.1"
 PORT       = 9877
 LAUNCHER   = str(Path.home() / ".local/bin/ai-youtube-summary")
+
+# Local-model summarization. Proxied through this server (instead of the
+# extension calling Ollama directly) because Ollama rejects requests whose
+# Origin header is chrome-extension://... with a 403 by default; a plain
+# Python request has no such header and goes straight through.
+OLLAMA_URL         = "http://127.0.0.1:11434/api/chat"
+OLLAMA_MODEL       = "qwen3.6:35b-a3b"
+SUMMARY_MAX_CHARS  = 20000
+SUMMARY_SYSTEM_PROMPT_BASE = (
+    "You are a careful video summarizer. Read the YouTube transcript the user gives you. "
+    "Structure your reply as markdown with: a one-line overall summary, then a '## Key Points' "
+    "bullet list, then a '## Notable Moments' bullet list (include a timestamp like mm:ss when "
+    "the transcript gives timing cues). Be concise and do not invent facts not in the transcript."
+)
+SUMMARY_LANG_INSTRUCTIONS = {
+    "zh": "Reply in Simplified Chinese (简体中文), regardless of what language the transcript is in.",
+    "en": "Reply in English, regardless of what language the transcript is in.",
+    "auto": "Reply in the same language the transcript is mostly written in.",
+}
+
+
+def _summarize(title, transcript, lang=None):
+    text = transcript or ""
+    truncated = len(text) > SUMMARY_MAX_CHARS
+    if truncated:
+        text = text[:SUMMARY_MAX_CHARS]
+
+    user_prompt = "Title: " + (title or "(unknown)") + "\n\nTranscript:\n" + text
+    if truncated:
+        user_prompt += "\n\n[transcript truncated for length]"
+
+    lang_instruction = SUMMARY_LANG_INSTRUCTIONS.get(lang, SUMMARY_LANG_INSTRUCTIONS["zh"])
+    system_prompt = SUMMARY_SYSTEM_PROMPT_BASE + " " + lang_instruction
+
+    payload = json.dumps({
+        "model": OLLAMA_MODEL,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        "stream": False,
+    }).encode("utf-8")
+
+    req = urllib.request.Request(OLLAMA_URL, data=payload,
+                                  headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=180) as resp:
+        data = json.loads(resp.read())
+    content = (data.get("message") or {}).get("content")
+    if not content:
+        raise ValueError("Ollama returned no content")
+    return content
 
 # Task store
 _tasks_     = {}
@@ -47,10 +100,9 @@ def _fetch_task(task_id, url, langs):
     outdir = TMP_DIR / task_id
     outdir.mkdir(parents=True, exist_ok=True)
 
-    cmd = ["python3", "-m", "ai_youtube_summary", "fetch", url]
+    cmd = ["python3", "-m", "ai_youtube_summary", "fetch", url, "-o", str(outdir)]
     if langs:
-        for lang in langs:
-            cmd += ["--lang", lang]
+        cmd += ["--lang", ",".join(langs)]
 
     env = os.environ.copy()
     src_path = str(BASE_DIR / "src")
@@ -174,6 +226,29 @@ class H(BaseHTTPRequestHandler):
             t.start()
 
             self._respond(202, {"id": task_id, "status": "queued"})
+            return
+
+        if path == "/summarize":
+            length = int(self.headers.get("Content-Length", 0))
+            body   = json.loads(self.rfile.read(length))
+            title      = body.get("title")
+            transcript = body.get("transcript")
+            lang       = body.get("lang")
+
+            if not transcript:
+                self._respond(400, {"error": "Missing 'transcript'"})
+                return
+
+            try:
+                content = _summarize(title, transcript, lang)
+            except urllib.error.URLError as e:
+                self._respond(502, {"error": "Could not reach Ollama on localhost:11434 (" + str(e) + ")"})
+                return
+            except Exception as e:
+                self._respond(502, {"error": str(e)})
+                return
+
+            self._respond(200, {"content": content})
             return
 
         self._respond(404, {"error": "Not found"})

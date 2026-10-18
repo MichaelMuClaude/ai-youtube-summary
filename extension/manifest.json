@@ -3,7 +3,13 @@
   "name": "YouTube Video Summary",
   "version": "0.1.0",
   "description": "Fetch YouTube video transcripts and summaries via ai-youtube-summary.",
-  "permissions": [],
+  "permissions": [
+    "tabs",
+    "sidePanel"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:9877/*"
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {"16": "icon.svg", "48": "icon.svg", "128": "icon.svg"}
